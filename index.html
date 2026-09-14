@@ -313,7 +313,7 @@
       <input id="searchInput" placeholder="Cari judul lagu atau penyanyi…">
     </div>
 
-    <button class="addbtn" id="btnOpenAdd">+ Tambah lagu dari Google Drive</button>
+    <button class="addbtn" id="btnOpenAdd">+ Tambah lagu dari GitHub</button>
 
     <div class="section-label">Semua lagu</div>
     <div id="allSongsList"></div>
@@ -365,10 +365,10 @@
       <div class="modal">
         <button class="close-x" onclick="closeModal('modalAdd')">✕</button>
         <h3>Tambah lagu</h3>
-        <p style="font-size:12px;color:var(--muted);margin:4px 0 0">Pastikan file di Google Drive sudah di-share "Anyone with the link".</p>
+        <p style="font-size:12px;color:var(--muted);margin:4px 0 0">Masukkan URL file audio (misal: raw link dari GitHub atau CDN jsDelivr).</p>
         <div class="form-card" style="box-shadow:none;border:none;padding:8px 0">
-          <label>Link share Google Drive</label>
-          <input id="fDriveLink" placeholder="https://drive.google.com/file/d/....">
+          <label>URL Audio / Link GitHub</label>
+          <input id="fDriveLink" placeholder="https://raw.githubusercontent.com/... atau https://cdn.jsdelivr.net/...">
           <label>Judul lagu</label>
           <input id="fTitle" placeholder="Contoh: Aurora">
           <label>Nama penyanyi / band</label>
@@ -410,7 +410,7 @@
 <script>
 /* ============================================================
    DATA LAYER — localStorage
-   songs: [{id,title,artist,driveId,plays}]
+   songs: [{id,title,artist,audioUrl,plays}]
    playlists: [{id,name,songIds:[]}]
 ============================================================ */
 const LS_SONGS = 'ma_songs', LS_PL = 'ma_playlists', LS_STATE='ma_state';
@@ -426,27 +426,15 @@ let playlists = loadPlaylists();
 // seed demo data first run
 if(songs.length === 0 && localStorage.getItem('ma_seeded') !== '1'){
   songs = [
-    {id:cryptoId(), title:'Aurora', artist:'Solara', driveId:'', plays:9},
-    {id:cryptoId(), title:'Euphoria', artist:'Luna', driveId:'', plays:6},
-    {id:cryptoId(), title:'Summer Vibes', artist:'Sunara Wiat', driveId:'', plays:4},
+    {id:cryptoId(), title:'Aurora', artist:'Solara', audioUrl:'', plays:9},
+    {id:cryptoId(), title:'Euphoria', artist:'Luna', audioUrl:'', plays:6},
+    {id:cryptoId(), title:'Summer Vibes', artist:'Sunara Wiat', audioUrl:'', plays:4},
   ];
   saveSongs(songs);
   localStorage.setItem('ma_seeded','1');
 }
 
 function cryptoId(){ return 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
-
-function driveIdFromLink(link){
-  if(!link) return '';
-  link = link.trim();
-  let m = link.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || link.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
-  if(m) return m[1];
-  if(/^[a-zA-Z0-9_-]{10,}$/.test(link)) return link; // raw id pasted
-  return '';
-}
-function driveStreamUrl(driveId){
-  return `https://drive.google.com/uc?export=download&id=${driveId}`;
-}
 
 /* ============================================================
    PLAYBACK STATE
@@ -483,16 +471,16 @@ function playSongById(id, list){
 function loadCurrent(autoplay){
   const s = currentSong();
   if(!s){ renderNowPlaying(); return; }
-  const url = s.driveId ? driveStreamUrl(s.driveId) : '';
+  const url = s.audioUrl || '';
   audio.src = url;
   renderNowPlaying();
   renderQueue();
   updateMediaSession();
   if(autoplay && url){
-    audio.play().catch(()=>{ toast('Tidak bisa memutar — cek link Google Drive lagu ini.'); });
+    audio.play().catch(()=>{ toast('Tidak bisa memutar — cek URL audio lagu ini.'); });
   }
   if(!url){
-    toast('Lagu ini belum punya sumber audio. Edit lagu untuk menambahkan link Drive.');
+    toast('Lagu ini belum punya sumber audio. Edit atau tambahkan link GitHub/URL.');
   }
 }
 
@@ -753,9 +741,7 @@ document.getElementById('btnSaveSong').onclick = ()=>{
   const title = document.getElementById('fTitle').value.trim();
   const artist = document.getElementById('fArtist').value.trim();
   if(!title || !artist){ toast('Isi judul dan nama penyanyi dulu.'); return; }
-  const driveId = driveIdFromLink(link);
-  if(link && !driveId){ toast('Link Google Drive tidak valid.'); return; }
-  const s = {id:cryptoId(), title, artist, driveId, plays:0};
+  const s = {id:cryptoId(), title, artist, audioUrl: link, plays:0};
   songs.push(s); saveSongs(songs);
   closeModal('modalAdd');
   renderAllSongs(''); renderTrending();
