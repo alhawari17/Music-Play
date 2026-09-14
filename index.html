@@ -202,17 +202,6 @@
     background:none;border:1.3px solid var(--ink);border-radius:12px;color:var(--ink);
     padding:11px;font-weight:700;font-size:13.5px;width:100%;cursor:pointer;
   }
-  .srcbtns{display:flex;gap:6px;margin-top:6px;}
-  .srcbtn{
-    flex:1;border:1.3px solid var(--ink);background:var(--cream);border-radius:10px;
-    padding:8px 6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--ink);
-  }
-  .srcbtn.on{background:var(--navy);color:#fff;border-color:var(--navy);}
-  .hint-sm{font-size:11px;color:var(--muted);margin:4px 0 0;}
-  input[type=file]{
-    width:100%;border:1.3px solid var(--line);border-radius:10px;padding:9px 10px;
-    font-size:12.5px;font-family:inherit;background:#FCFBF7;
-  }
 
   /* ---------- Footer nav ---------- */
   nav.footer{
@@ -258,7 +247,7 @@
   <header class="topbar">
     <div class="brand">
       <h1>MUSIC APP</h1>
-      <span class="beta">BETA</span>
+      <span class="beta">CLOUD</span>
     </div>
     <div class="avatar">🎧</div>
   </header>
@@ -324,13 +313,13 @@
       <input id="searchInput" placeholder="Cari judul lagu atau penyanyi…">
     </div>
 
-    <button class="addbtn" id="btnOpenAdd">+ Tambah lagu</button>
-
-    <div class="section-label">🔥 Musik trending</div>
-    <div id="trendingList"></div>
+    <button class="addbtn" id="btnOpenAdd">+ Tambah lagu dari Google Drive</button>
 
     <div class="section-label">Semua lagu</div>
     <div id="allSongsList"></div>
+
+    <div class="section-label">🔥 Musik trending</div>
+    <div id="trendingList"></div>
   </section>
 
   <!-- ===================== PROFILE / PLAYLISTS ===================== -->
@@ -368,7 +357,6 @@
   </nav>
 
   <audio id="audio" preload="metadata"></audio>
-  <div id="ytPlayerHost" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden"></div>
   <div class="mini-toast" id="toast"></div>
 
   <!-- Modal: add song -->
@@ -377,31 +365,10 @@
       <div class="modal">
         <button class="close-x" onclick="closeModal('modalAdd')">✕</button>
         <h3>Tambah lagu</h3>
-        <p style="font-size:12px;color:var(--muted);margin:4px 0 0">Pilih sumber musik: link YouTube, upload file dari HP, atau link Google Drive.</p>
+        <p style="font-size:12px;color:var(--muted);margin:4px 0 0">Pastikan file di Google Drive sudah di-share "Anyone with the link".</p>
         <div class="form-card" style="box-shadow:none;border:none;padding:8px 0">
-          <label>Sumber musik</label>
-          <div class="srcbtns">
-            <button type="button" class="srcbtn on" data-src="youtube">YouTube</button>
-            <button type="button" class="srcbtn" data-src="upload">Upload File</button>
-            <button type="button" class="srcbtn" data-src="drive">Google Drive</button>
-          </div>
-
-          <div id="srcFieldYoutube">
-            <label>Link YouTube</label>
-            <input id="fYoutubeLink" placeholder="https://youtu.be/Jsi1hmjHmOU?si=...">
-            <p class="hint-sm">Tempel link video/musik YouTube (youtu.be atau youtube.com).</p>
-          </div>
-          <div id="srcFieldUpload" style="display:none">
-            <label>Pilih file audio</label>
-            <input id="fUploadFile" type="file" accept="audio/*">
-            <p class="hint-sm">File disimpan langsung di HP kamu (tersimpan di perangkat ini).</p>
-          </div>
-          <div id="srcFieldDrive" style="display:none">
-            <label>Link share Google Drive</label>
-            <input id="fDriveLink" placeholder="https://drive.google.com/file/d/....">
-            <p class="hint-sm">Pastikan file sudah di-share "Anyone with the link".</p>
-          </div>
-
+          <label>Link share Google Drive</label>
+          <input id="fDriveLink" placeholder="https://drive.google.com/file/d/....">
           <label>Judul lagu</label>
           <input id="fTitle" placeholder="Contoh: Aurora">
           <label>Nama penyanyi / band</label>
@@ -440,178 +407,56 @@
 
 </div>
 
+<!-- Firebase SDK (Modular v10) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // TODO: Ganti dengan konfigurasi Firebase Anda sendiri dari Firebase Console
+  const firebaseConfig = {
+    apiKey: "API_KEY_ANDA",
+    authDomain: "PROJECT_ID.firebaseapp.com",
+    projectId: "PROJECT_ID",
+    storageBucket: "PROJECT_ID.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.db = db;
+  window.firebaseCols = { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, onSnapshot };
+  
+  // Trigger init app after firebase loaded
+  if(window.initAppReady) window.initAppReady();
+</script>
+
 <script>
-/* ============================================================
-   DATA LAYER — localStorage
-   songs: [{id,title,artist,driveId,plays}]
-   playlists: [{id,name,songIds:[]}]
-============================================================ */
-const LS_SONGS = 'ma_songs', LS_PL = 'ma_playlists', LS_STATE='ma_state';
-
-function loadSongs(){ return JSON.parse(localStorage.getItem(LS_SONGS) || '[]'); }
-function saveSongs(s){ localStorage.setItem(LS_SONGS, JSON.stringify(s)); }
-function loadPlaylists(){ return JSON.parse(localStorage.getItem(LS_PL) || '[]'); }
-function savePlaylists(p){ localStorage.setItem(LS_PL, JSON.stringify(p)); }
-
-let songs = loadSongs();
-let playlists = loadPlaylists();
-
-// bersihkan lagu lama "Kita Lewati Berdua Overnight" agar bisa upload ulang dari awal
-{
-  const before = songs.length;
-  songs = songs.filter(s => (s.title||'').trim().toLowerCase() !== 'kita lewati berdua overnight');
-  if(songs.length !== before) saveSongs(songs);
-}
-
-// seed demo data first run
-if(songs.length === 0 && localStorage.getItem('ma_seeded') !== '1'){
-  songs = [
-    {id:cryptoId(), title:'Aurora', artist:'Solara', driveId:'', plays:9},
-    {id:cryptoId(), title:'Euphoria', artist:'Luna', driveId:'', plays:6},
-    {id:cryptoId(), title:'Summer Vibes', artist:'Sunara Wiat', driveId:'', plays:4},
-  ];
-  saveSongs(songs);
-  localStorage.setItem('ma_seeded','1');
-}
-
-function cryptoId(){ return 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+let songs = [];
+let playlists = [];
 
 function driveIdFromLink(link){
   if(!link) return '';
   link = link.trim();
   let m = link.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || link.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
   if(m) return m[1];
-  if(/^[a-zA-Z0-9_-]{10,}$/.test(link)) return link; // raw id pasted
+  if(/^[a-zA-Z0-9_-]{10,}$/.test(link)) return link;
   return '';
 }
 function driveStreamUrl(driveId){
   return `https://drive.google.com/uc?export=download&id=${driveId}`;
 }
 
-function youtubeIdFromLink(link){
-  if(!link) return '';
-  link = link.trim();
-  let m = link.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/)
-    || link.match(/[?&]v=([a-zA-Z0-9_-]{6,})/)
-    || link.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/)
-    || link.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/);
-  if(m) return m[1];
-  if(/^[a-zA-Z0-9_-]{6,}$/.test(link)) return link; // raw id pasted
-  return '';
-}
-
-/* ---------- IndexedDB: penyimpanan file upload di perangkat ---------- */
-const IDB_NAME = 'ma_audio_db', IDB_STORE = 'files';
-function idbOpen(){
-  return new Promise((resolve, reject)=>{
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = ()=>{ req.result.createObjectStore(IDB_STORE); };
-    req.onsuccess = ()=> resolve(req.result);
-    req.onerror = ()=> reject(req.error);
-  });
-}
-async function idbPutFile(key, blob){
-  const db = await idbOpen();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(blob, key);
-    tx.oncomplete = ()=> resolve();
-    tx.onerror = ()=> reject(tx.error);
-  });
-}
-async function idbGetFile(key){
-  const db = await idbOpen();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction(IDB_STORE, 'readonly');
-    const req = tx.objectStore(IDB_STORE).get(key);
-    req.onsuccess = ()=> resolve(req.result);
-    req.onerror = ()=> reject(req.error);
-  });
-}
-async function idbDeleteFile(key){
-  try{
-    const db = await idbOpen();
-    return new Promise((resolve)=>{
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).delete(key);
-      tx.oncomplete = ()=> resolve();
-      tx.onerror = ()=> resolve();
-    });
-  }catch(e){ /* ignore */ }
-}
-
 /* ============================================================
    PLAYBACK STATE
 ============================================================ */
-let queue = [...songs];          // upcoming order
+let queue = [];
 let currentIndex = 0;
 let shuffleOn = false;
 let repeatOn = false;
-let activePlayer = 'audio';      // 'audio' | 'youtube'
-let ytPlayer = null;
-let ytPlayerPromise = null;
-let ytPollTimer = null;
 
 const audio = document.getElementById('audio');
-
-/* ---------- YouTube IFrame player (untuk lagu bersumber link YouTube) ---------- */
-function ensureYTApi(){
-  return new Promise((resolve)=>{
-    if(window.YT && window.YT.Player){ resolve(); return; }
-    const prevReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = ()=>{ if(prevReady) prevReady(); resolve(); };
-    if(!document.getElementById('ytApiScript')){
-      const tag = document.createElement('script');
-      tag.id = 'ytApiScript';
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(tag);
-    }
-  });
-}
-function ensureYTPlayer(){
-  if(ytPlayerPromise) return ytPlayerPromise;
-  ytPlayerPromise = ensureYTApi().then(()=> new Promise((resolve)=>{
-    ytPlayer = new YT.Player('ytPlayerHost', {
-      height:'1', width:'1',
-      playerVars:{ playsinline:1, controls:0, rel:0 },
-      events:{
-        onReady: ()=> resolve(ytPlayer),
-        onStateChange: onYTStateChange
-      }
-    });
-  }));
-  return ytPlayerPromise;
-}
-function onYTStateChange(e){
-  if(activePlayer !== 'youtube') return;
-  if(e.data === YT.PlayerState.PLAYING){
-    setPlayIcon(true);
-    document.getElementById('playingTag').style.display='inline-block';
-    startYTPoll();
-  } else if(e.data === YT.PlayerState.PAUSED){
-    setPlayIcon(false);
-    document.getElementById('playingTag').style.display='none';
-    stopYTPoll();
-  } else if(e.data === YT.PlayerState.ENDED){
-    stopYTPoll();
-    playNext(false);
-  }
-}
-function startYTPoll(){
-  stopYTPoll();
-  ytPollTimer = setInterval(()=>{
-    if(!ytPlayer || activePlayer!=='youtube' || !ytPlayer.getDuration) return;
-    const dur = ytPlayer.getDuration();
-    const cur = ytPlayer.getCurrentTime();
-    if(dur){
-      document.getElementById('seekbar').value = (cur/dur*100)||0;
-      document.getElementById('npCur').textContent = fmtTime(cur);
-      document.getElementById('npDur').textContent = fmtTime(dur);
-    }
-  }, 500);
-}
-function stopYTPoll(){ if(ytPollTimer){ clearInterval(ytPollTimer); ytPollTimer=null; } }
-
 function currentSong(){ return queue[currentIndex]; }
 
 function buildQueueFromAll(startId){
@@ -634,88 +479,52 @@ function playSongById(id, list){
   loadCurrent(true);
 }
 
-async function loadCurrent(autoplay){
+function loadCurrent(autoplay){
   const s = currentSong();
   if(!s){ renderNowPlaying(); return; }
+  const url = s.driveId ? driveStreamUrl(s.driveId) : '';
+  audio.src = url;
   renderNowPlaying();
   renderQueue();
   updateMediaSession();
-  stopYTPoll();
-
-  if(s.sourceType === 'youtube' && s.youtubeId){
-    activePlayer = 'youtube';
-    audio.pause(); audio.removeAttribute('src'); audio.load();
-    try{
-      const p = await ensureYTPlayer();
-      p.loadVideoById(s.youtubeId);
-      if(!autoplay){ setTimeout(()=>{ try{ p.pauseVideo(); }catch(e){} }, 400); }
-    }catch(err){
-      toast('Gagal memuat YouTube. Cek koneksi internet.');
-    }
-    return;
-  }
-
-  // sumber audio langsung: upload / google drive
-  activePlayer = 'audio';
-  if(ytPlayer){ try{ ytPlayer.stopVideo(); }catch(e){} }
-  document.getElementById('playingTag').style.display='none';
-
-  let url = '';
-  if(s.sourceType === 'upload' && s.hasUpload){
-    try{
-      const blob = await idbGetFile(s.id);
-      if(blob) url = URL.createObjectURL(blob);
-    }catch(e){ /* ignore */ }
-  } else if(s.driveId){
-    url = driveStreamUrl(s.driveId);
-  }
-  audio.src = url;
   if(autoplay && url){
-    audio.play().catch(()=>{ toast('Tidak bisa memutar lagu ini.'); });
+    audio.play().catch(()=>{ toast('Tidak bisa memutar — cek link Google Drive lagu ini.'); });
   }
   if(!url){
-    toast('Lagu ini belum punya sumber audio. Hapus dan tambahkan ulang lagunya.');
+    toast('Lagu ini belum punya sumber audio. Edit lagu untuk menambahkan link Drive.');
   }
 }
 
 function togglePlay(){
-  if(!currentSong()){ toast('Belum ada lagu untuk diputar. Tambahkan lagu di menu Pencarian.'); return; }
-  if(activePlayer === 'youtube'){
-    if(!ytPlayer){ loadCurrent(true); return; }
-    const state = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
-    if(state === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
-    return;
-  }
+  if(!currentSong()){ toast('Belum ada lagu untuk diputar.'); return; }
   if(!audio.src){ loadCurrent(true); return; }
   if(audio.paused) audio.play().catch(()=>toast('Gagal memutar lagu ini.'));
   else audio.pause();
 }
 function playNext(userTriggered){
   if(queue.length===0) return;
-  if(repeatOn && !userTriggered){
-    if(activePlayer==='youtube' && ytPlayer){ ytPlayer.seekTo(0,true); ytPlayer.playVideo(); }
-    else { audio.currentTime=0; audio.play(); }
-    return;
-  }
+  if(repeatOn && !userTriggered){ audio.currentTime=0; audio.play(); return; }
   currentIndex = (currentIndex+1) % queue.length;
   bumpPlayCount(currentSong());
   loadCurrent(true);
 }
 function playPrev(){
   if(queue.length===0) return;
-  const curTime = activePlayer==='youtube' && ytPlayer && ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : audio.currentTime;
-  if(curTime > 4){
-    if(activePlayer==='youtube' && ytPlayer) ytPlayer.seekTo(0,true);
-    else audio.currentTime = 0;
-    return;
-  }
+  if(audio.currentTime > 4){ audio.currentTime = 0; return; }
   currentIndex = (currentIndex-1+queue.length) % queue.length;
   loadCurrent(true);
 }
-function bumpPlayCount(s){
-  if(!s) return;
+
+async function bumpPlayCount(s){
+  if(!s || !window.db) return;
   const t = songs.find(x=>x.id===s.id);
-  if(t){ t.plays = (t.plays||0)+1; saveSongs(songs); }
+  if(t){
+    const newPlays = (t.plays||0)+1;
+    t.plays = newPlays;
+    try {
+      await window.firebaseCols.updateDoc(window.firebaseCols.doc(window.db, "songs", s.docId), { plays: newPlays });
+    } catch(e){ console.error(e); }
+  }
 }
 
 audio.addEventListener('play', ()=>{ setPlayIcon(true); document.getElementById('playingTag').style.display='inline-block'; });
@@ -728,13 +537,6 @@ audio.addEventListener('timeupdate', ()=>{
   document.getElementById('npDur').textContent = fmtTime(audio.duration);
 });
 document.getElementById('seekbar').addEventListener('input', e=>{
-  if(activePlayer==='youtube'){
-    if(ytPlayer && ytPlayer.getDuration){
-      const dur = ytPlayer.getDuration();
-      if(dur) ytPlayer.seekTo(e.target.value/100*dur, true);
-    }
-    return;
-  }
   if(isFinite(audio.duration)) audio.currentTime = e.target.value/100*audio.duration;
 });
 function fmtTime(t){ if(!isFinite(t)) return '00:00'; const m=Math.floor(t/60), s=Math.floor(t%60); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
@@ -761,7 +563,6 @@ document.getElementById('btnRepeat').onclick = ()=>{
   toast(repeatOn ? 'Ulangi lagu ini' : 'Ulangi dimatikan');
 };
 
-/* ---------- Media Session (lockscreen controls) ---------- */
 function updateMediaSession(){
   if(!('mediaSession' in navigator)) return;
   const s = currentSong();
@@ -770,12 +571,8 @@ function updateMediaSession(){
     title: s.title, artist: s.artist, album: 'Music App',
     artwork: [{src:'icon-192.png', sizes:'192x192', type:'image/png'}]
   });
-  navigator.mediaSession.setActionHandler('play', ()=>{
-    if(activePlayer==='youtube'){ ytPlayer && ytPlayer.playVideo(); } else { audio.play().catch(()=>{}); }
-  });
-  navigator.mediaSession.setActionHandler('pause', ()=>{
-    if(activePlayer==='youtube'){ ytPlayer && ytPlayer.pauseVideo(); } else { audio.pause(); }
-  });
+  navigator.mediaSession.setActionHandler('play', ()=>audio.play());
+  navigator.mediaSession.setActionHandler('pause', ()=>audio.pause());
   navigator.mediaSession.setActionHandler('previoustrack', playPrev);
   navigator.mediaSession.setActionHandler('nexttrack', ()=>playNext(true));
 }
@@ -798,21 +595,16 @@ function coverGradient(id){
 function renderQueue(){
   const el = document.getElementById('queueList');
   const upcoming = queue.slice(currentIndex+1).concat(queue.slice(0,currentIndex));
-  if(songs.length===0){ el.innerHTML = emptyHint('Belum ada lagu. Tambahkan lewat menu Pencarian.'); return; }
+  if(songs.length===0){ el.innerHTML = emptyHint('Belum ada lagu.'); return; }
   if(upcoming.length===0){ el.innerHTML = emptyHint('Ini lagu terakhir di antrean.'); return; }
   el.innerHTML = upcoming.map(s=>songRowHtml(s, s.id===currentSong()?.id)).join('');
   bindRowClicks(el, upcoming);
 }
 function emptyHint(text){ return `<div class="empty-hint">${text}</div>`; }
 
-function sourceIcon(s){
-  if(s.sourceType==='youtube') return '▶';
-  if(s.sourceType==='upload') return '⬆';
-  return '☁';
-}
 function songRowHtml(s, active){
   return `<div class="song-row ${active?'active':''}" data-id="${s.id}">
-    <div class="row-thumb" style="background:${coverGradient(s.id)}">${sourceIcon(s)}</div>
+    <div class="row-thumb" style="background:${coverGradient(s.id)}">♪</div>
     <div class="row-mid">
       <div class="row-title">${esc(s.title)}</div>
       <div class="row-artist">${esc(s.artist)}</div>
@@ -843,7 +635,7 @@ function renderAllSongs(filter){
   const el = document.getElementById('allSongsList');
   let list = songs;
   if(filter) list = songs.filter(s => (s.title+' '+s.artist).toLowerCase().includes(filter.toLowerCase()));
-  if(list.length===0){ el.innerHTML = emptyHint(filter ? 'Tidak ditemukan.' : 'Belum ada lagu. Ketuk "Tambah lagu" di atas.'); return; }
+  if(list.length===0){ el.innerHTML = emptyHint(filter ? 'Tidak ditemukan.' : 'Belum ada lagu.'); return; }
   el.innerHTML = list.map(s=>songRowHtml(s, currentSong()?.id===s.id)).join('');
   bindRowClicks(el, list);
 }
@@ -855,7 +647,7 @@ function renderTrending(){
   el.innerHTML = top.map((s,i)=>`
     <div class="trend-row" data-id="${s.id}">
       <div class="rank">${i+1}</div>
-      <div class="row-thumb" style="background:${coverGradient(s.id)}">${sourceIcon(s)}</div>
+      <div class="row-thumb" style="background:${coverGradient(s.id)}">♪</div>
       <div class="row-mid">
         <div class="row-title">${esc(s.title)}</div>
         <div class="row-artist">${esc(s.artist)}</div>
@@ -867,13 +659,13 @@ function renderTrending(){
 
 function renderPlaylists(){
   const el = document.getElementById('playlistList');
-  if(playlists.length===0){ el.innerHTML = emptyHint('Belum ada playlist. Buat satu di bawah.'); return; }
+  if(playlists.length===0){ el.innerHTML = emptyHint('Belum ada playlist.'); return; }
   el.innerHTML = playlists.map(p=>`
     <div class="pl-card" data-id="${p.id}">
       <div class="pl-icon">🎵</div>
       <div>
         <div class="pl-name">${esc(p.name)}</div>
-        <div class="pl-count">${p.songIds.length} lagu</div>
+        <div class="pl-count">${(p.songIds||[]).length} lagu</div>
       </div>
     </div>`).join('');
   el.querySelectorAll('.pl-card').forEach(c=> c.onclick = ()=>openPlaylistDetail(c.dataset.id));
@@ -885,48 +677,60 @@ function openPlaylistDetail(id){
   const p = playlists.find(x=>x.id===id);
   document.getElementById('playlistDetail').style.display = 'block';
   document.getElementById('pdName').textContent = p.name;
-  const list = p.songIds.map(sid=>songs.find(s=>s.id===sid)).filter(Boolean);
+  const list = (p.songIds||[]).map(sid=>songs.find(s=>s.id===sid)).filter(Boolean);
   const el = document.getElementById('pdSongs');
   if(list.length===0){ el.innerHTML = emptyHint('Playlist ini masih kosong.'); }
   else { el.innerHTML = list.map(s=>songRowHtml(s, currentSong()?.id===s.id)).join(''); bindRowClicks(el, list); }
 }
 document.getElementById('pdBack').onclick = ()=>{ document.getElementById('playlistDetail').style.display='none'; openPlaylistId=null; };
-document.getElementById('pdDelete').onclick = ()=>{
+document.getElementById('pdDelete').onclick = async ()=>{
   if(!openPlaylistId) return;
   if(confirm('Hapus playlist ini?')){
-    playlists = playlists.filter(p=>p.id!==openPlaylistId);
-    savePlaylists(playlists);
-    document.getElementById('playlistDetail').style.display='none';
-    renderPlaylists();
-    toast('Playlist dihapus');
+    const p = playlists.find(x=>x.id===openPlaylistId);
+    try {
+      await window.firebaseCols.deleteDoc(window.firebaseCols.doc(window.db, "playlists", p.docId));
+      document.getElementById('playlistDetail').style.display='none';
+      toast('Playlist dihapus');
+    } catch(e){ console.error(e); }
   }
 };
-document.getElementById('pdEdit').onclick = ()=>{
+document.getElementById('pdEdit').onclick = async ()=>{
   const p = playlists.find(x=>x.id===openPlaylistId);
   const name = prompt('Nama baru untuk playlist:', p.name);
-  if(name && name.trim()){ p.name = name.trim(); savePlaylists(playlists); openPlaylistDetail(p.id); renderPlaylists(); }
+  if(name && name.trim()){
+    p.name = name.trim();
+    try {
+      await window.firebaseCols.updateDoc(window.firebaseCols.doc(window.db, "playlists", p.docId), { name: p.name });
+      openPlaylistDetail(p.id);
+      renderPlaylists();
+    } catch(e){ console.error(e); }
+  }
 };
 
-/* ---------- picker modal: add song to playlist ---------- */
 let pickerSongId = null;
 function openPicker(songId){
   pickerSongId = songId;
   const el = document.getElementById('pickerList');
   if(playlists.length===0){
-    el.innerHTML = emptyHint('Belum ada playlist. Buat dulu di menu Profil.');
+    el.innerHTML = emptyHint('Belum ada playlist.');
   } else {
     el.innerHTML = playlists.map(p=>`
       <div class="pl-card" data-id="${p.id}">
         <div class="pl-icon">🎵</div>
-        <div><div class="pl-name">${esc(p.name)}</div><div class="pl-count">${p.songIds.length} lagu</div></div>
+        <div><div class="pl-name">${esc(p.name)}</div><div class="pl-count">${(p.songIds||[]).length} lagu</div></div>
       </div>`).join('');
     el.querySelectorAll('.pl-card').forEach(c=>{
-      c.onclick = ()=>{
+      c.onclick = async ()=>{
         const p = playlists.find(x=>x.id===c.dataset.id);
-        if(!p.songIds.includes(pickerSongId)) p.songIds.push(pickerSongId);
-        savePlaylists(playlists);
-        renderPlaylists();
-        toast(`Ditambahkan ke "${p.name}"`);
+        if(!p.songIds) p.songIds = [];
+        if(!p.songIds.includes(pickerSongId)){
+          p.songIds.push(pickerSongId);
+          try {
+            await window.firebaseCols.updateDoc(window.firebaseCols.doc(window.db, "playlists", p.docId), { songIds: p.songIds });
+            renderPlaylists();
+            toast(`Ditambahkan ke "${p.name}"`);
+          } catch(e){ console.error(e); }
+        }
         closeModal('modalPicker');
       };
     });
@@ -934,9 +738,6 @@ function openPicker(songId){
   openModal('modalPicker');
 }
 
-/* ============================================================
-   NAV / TABS
-============================================================ */
 function goto(tab){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+tab).classList.add('active');
@@ -950,70 +751,34 @@ function goto(tab){
 
 document.getElementById('searchInput').addEventListener('input', e=> renderAllSongs(e.target.value));
 
-/* ---------- modals ---------- */
 function openModal(id){ document.getElementById(id).classList.add('show'); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-bg').forEach(m=> m.addEventListener('click', e=>{ if(e.target===m) closeModal(m.id); }));
 
-let addSourceType = 'youtube';
-function setAddSourceType(type){
-  addSourceType = type;
-  document.querySelectorAll('.srcbtn').forEach(b=> b.classList.toggle('on', b.dataset.src===type));
-  document.getElementById('srcFieldYoutube').style.display = type==='youtube' ? 'block' : 'none';
-  document.getElementById('srcFieldUpload').style.display = type==='upload' ? 'block' : 'none';
-  document.getElementById('srcFieldDrive').style.display = type==='drive' ? 'block' : 'none';
-}
-document.querySelectorAll('.srcbtn').forEach(b=>{
-  b.onclick = ()=> setAddSourceType(b.dataset.src);
-});
-
 document.getElementById('btnOpenAdd').onclick = ()=>{
-  document.getElementById('fYoutubeLink').value='';
   document.getElementById('fDriveLink').value='';
-  document.getElementById('fUploadFile').value='';
   document.getElementById('fTitle').value='';
   document.getElementById('fArtist').value='';
-  setAddSourceType('youtube');
   openModal('modalAdd');
 };
+
 document.getElementById('btnSaveSong').onclick = async ()=>{
+  const link = document.getElementById('fDriveLink').value.trim();
   const title = document.getElementById('fTitle').value.trim();
   const artist = document.getElementById('fArtist').value.trim();
   if(!title || !artist){ toast('Isi judul dan nama penyanyi dulu.'); return; }
-
-  const s = {id:cryptoId(), title, artist, sourceType:addSourceType, driveId:'', youtubeId:'', hasUpload:false, plays:0};
-  const btn = document.getElementById('btnSaveSong');
-
-  if(addSourceType==='youtube'){
-    const link = document.getElementById('fYoutubeLink').value.trim();
-    const ytId = youtubeIdFromLink(link);
-    if(!ytId){ toast('Link YouTube tidak valid.'); return; }
-    s.youtubeId = ytId;
-  } else if(addSourceType==='drive'){
-    const link = document.getElementById('fDriveLink').value.trim();
-    const driveId = driveIdFromLink(link);
-    if(!driveId){ toast('Link Google Drive tidak valid.'); return; }
-    s.driveId = driveId;
-  } else if(addSourceType==='upload'){
-    const file = document.getElementById('fUploadFile').files[0];
-    if(!file){ toast('Pilih file audio dulu.'); return; }
-    btn.disabled = true; btn.textContent = 'Menyimpan…';
-    try{
-      await idbPutFile(s.id, file);
-      s.hasUpload = true;
-    }catch(err){
-      toast('Gagal menyimpan file audio di perangkat ini.');
-      btn.disabled = false; btn.textContent = 'Simpan lagu';
-      return;
-    }
-    btn.disabled = false; btn.textContent = 'Simpan lagu';
+  const driveId = driveIdFromLink(link);
+  if(link && !driveId){ toast('Link Google Drive tidak valid.'); return; }
+  
+  const newSong = { id: 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36), title, artist, driveId, plays: 0 };
+  try {
+    await window.firebaseCols.addDoc(window.firebaseCols.collection(window.db, "songs"), newSong);
+    closeModal('modalAdd');
+    toast('Lagu ditambahkan ke Cloud');
+  } catch(e){
+    console.error(e);
+    toast('Gagal menyimpan ke Cloud');
   }
-
-  songs.push(s); saveSongs(songs);
-  closeModal('modalAdd');
-  renderAllSongs(''); renderTrending();
-  if(queue.length===0){ buildQueueFromAll(); renderQueue(); }
-  toast('Lagu ditambahkan');
 };
 
 document.getElementById('btnNewPlaylist').onclick = ()=>{
@@ -1021,17 +786,21 @@ document.getElementById('btnNewPlaylist').onclick = ()=>{
   document.getElementById('fPlaylistName').value='';
   openModal('modalPlaylist');
 };
-document.getElementById('btnSavePlaylist').onclick = ()=>{
+
+document.getElementById('btnSavePlaylist').onclick = async ()=>{
   const name = document.getElementById('fPlaylistName').value.trim();
   if(!name){ toast('Isi nama playlist dulu.'); return; }
-  playlists.push({id:cryptoId(), name, songIds:[]});
-  savePlaylists(playlists);
-  closeModal('modalPlaylist');
-  renderPlaylists();
-  toast('Playlist dibuat');
+  const newPl = { id: 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36), name, songIds: [] };
+  try {
+    await window.firebaseCols.addDoc(window.firebaseCols.collection(window.db, "playlists"), newPl);
+    closeModal('modalPlaylist');
+    toast('Playlist dibuat di Cloud');
+  } catch(e){
+    console.error(e);
+    toast('Gagal membuat playlist');
+  }
 };
 
-/* ---------- toast ---------- */
 let toastTimer;
 function toast(msg){
   const t = document.getElementById('toast');
@@ -1041,22 +810,31 @@ function toast(msg){
   toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-/* ============================================================
-   INIT
-============================================================ */
-buildQueueFromAll();
-renderNowPlaying();
-renderQueue();
-renderAllSongs('');
-renderTrending();
-renderPlaylists();
-
-/* register service worker for installable PWA (helps background playback stability) */
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+// Real-time Sync dari Firestore
+window.initAppReady = function(){
+  // Listen Songs
+  window.firebaseCols.onSnapshot(window.firebaseCols.collection(window.db, "songs"), (snapshot)=>{
+    songs = [];
+    snapshot.forEach((docSnap)=>{
+      songs.push({ docId: docSnap.id, ...docSnap.data() });
+    });
+    if(queue.length === 0) buildQueueFromAll();
+    renderNowPlaying();
+    renderQueue();
+    renderAllSongs(document.getElementById('searchInput').value);
+    renderTrending();
   });
-}
+
+  // Listen Playlists
+  window.firebaseCols.onSnapshot(window.firebaseCols.collection(window.db, "playlists"), (snapshot)=>{
+    playlists = [];
+    snapshot.forEach((docSnap)=>{
+      playlists.push({ docId: docSnap.id, ...docSnap.data() });
+    });
+    renderPlaylists();
+    if(openPlaylistId) openPlaylistDetail(openPlaylistId);
+  });
+};
 </script>
 </body>
 </html>
